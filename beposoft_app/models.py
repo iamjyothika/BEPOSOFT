@@ -407,4 +407,10 @@ class BeposoftCart(models.Model):
         db_table = "beposoft_cart"
 
 
+# class ChatMessage(models.Model):
+#     user=models.ForeignKey(User,on_delete=models.CASCADE,related_name='user')
+#     sender=models.ForeignKey(User,on_delete=models.CASCADE,related_name="sender")
+#     receiver=models.ForeignKey(User,on_delete=models.CASCADE,related_name='receiver')
+#     message=models.CharField(max_length=1000)
+#     is_read=models.DateTimeField()
 
