@@ -16,6 +16,8 @@ from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import DatabaseError
 from decimal import Decimal
+from django.core.mail import send_mail
+from django.template.loader import render_to_string
 
 
 
@@ -131,6 +133,94 @@ class BaseTokenView(APIView):
         
         except Exception as e:
             return None, Response({"status": "error", "message": "An error occurred while decoding the token", "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+import logging
+
+logger = logging.getLogger(__name__)        
+
+
+class SendOTPView(BaseTokenView):
+    def post(self, request):
+        try:
+            email = request.data.get('email')
+            print(email)
+            user = User.objects.filter(email=email).first()
+            if not user:
+                return Response({"message": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+            
+            otp_instance = OTPModel.objects.filter(user=user).first()
+            otp = random.randint(100000, 999999)
+
+            if otp_instance:
+                otp_instance.otp = otp
+                otp_instance.save()
+            else:
+                OTPModel.objects.create(user=user, otp=otp)
+
+            # Render email template with OTP value
+            email_body = render_to_string('otp.html', {'otp': otp})
+
+            # Send email
+            send_mail(
+                'Your OTP Code',
+                '',  # Leave plain text blank if you're only sending HTML
+                settings.EMAIL_HOST_USER,  
+                [email],  
+                fail_silently=False,
+                html_message=email_body  # Sending HTML email
+            )
+            return Response({"message": "OTP sent to email"}, status=status.HTTP_200_OK)
+        except Exception as e:
+            logger.error(f"Error in SendOTPView: {e}")
+            return Response({"message": "An error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+class VerifyOTPView(BaseTokenView):
+    def post(self, request):
+        try:
+            email=request.data.get('email')
+            otp=request.data.get('otp')
+            if not otp and email :
+                return Response({"message": "OTP not found"}, status=status.HTTP_404_NOT_FOUND)
+
+
+            user = User.objects.filter(email=email).first()
+            if not user:
+                return Response({"message": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+            valid_otp = OTPModel.objects.filter(user=user, otp=otp).first()
+            if not valid_otp:
+                return Response({"message": "Invalid OTP"}, status=status.HTTP_400_BAD_REQUEST)
+
+            return Response({"message": "OTP verified"}, status=status.HTTP_200_OK)
+
+                
+        except Exception as e:
+            print(e)
+            return Response({"error": "An error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+class ChangePasswordView(APIView):
+    def post(self, request):
+        try:
+            email = request.data.get('email')
+            new_password = request.data.get('new_password')
+            confirm_password = request.data.get('confirm_password')
+            user = User.objects.filter(email=email).first()
+            if not user:
+                return Response({"message": "User not found"}, status=status.HTTP_404_NOT_FOUND)
+        
+            if new_password != confirm_password :
+                return Response({"message": "Password is not match !"}, status=status.HTTP_404_NOT_FOUND)
+        
+            user.password = make_password(new_password)
+            user.save()
+            return Response({"message": "Password changed successfully"}, status=status.HTTP_200_OK)
+        except Exception as e:
+            print(e)
+            return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)        
+
+       
         
         
 

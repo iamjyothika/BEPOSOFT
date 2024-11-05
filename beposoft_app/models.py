@@ -6,6 +6,8 @@ from django.core.exceptions import ValidationError
 from decimal import Decimal
 import random
 # Create your models here.
+from datetime import timedelta
+from django.utils import timezone
 
 
 class State(models.Model):
@@ -407,10 +409,28 @@ class BeposoftCart(models.Model):
         db_table = "beposoft_cart"
 
 
-# class ChatMessage(models.Model):
-#     user=models.ForeignKey(User,on_delete=models.CASCADE,related_name='user')
-#     sender=models.ForeignKey(User,on_delete=models.CASCADE,related_name="sender")
-#     receiver=models.ForeignKey(User,on_delete=models.CASCADE,related_name='receiver')
-#     message=models.CharField(max_length=1000)
-#     is_read=models.DateTimeField()
+class ChatMessage(models.Model):
+    user=models.ForeignKey(User,on_delete=models.CASCADE,related_name='user')
+    sender=models.ForeignKey(User,on_delete=models.CASCADE,related_name="sender")
+    receiver=models.ForeignKey(User,on_delete=models.CASCADE,related_name='receiver')
+    message=models.CharField(max_length=1000)
+    is_read=models.BooleanField(default=False)
+    date=models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering=['date']   
+
+
+    def __str__(self):
+        return f"{self.sender.username}-{self.receiver.username}"    
+
+class OTPModel(models.Model):
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    otp = models.CharField(max_length=6)
+   
+
+    def is_valid(self):
+        # OTP is valid for 15 minutes
+        expiration_time = self.created_at + timedelta(minutes=15)
+        return timezone.now() <= expiration_time and not self.is_used      
 

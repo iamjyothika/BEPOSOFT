@@ -527,6 +527,13 @@ class BepocartSerializersView(serializers.ModelSerializer):
         if obj.variant and obj.variant.is_variant:
             return obj.size.attribute if obj.size else None
         return None
+    
+
+class MessageSerializer(serializers.ModelSerializer):
+    class Meta:
+        model=ChatMessage
+        fields=('id','message','sender','receiver','is_read','date')
+    
 
 
 
