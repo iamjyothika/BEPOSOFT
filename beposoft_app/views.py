@@ -7,6 +7,8 @@ import logging
 import itertools
 from .serializers import *
 from .models import User
+from rest_framework import generics
+
 from django.contrib.auth.hashers import check_password, make_password
 from datetime import datetime, timedelta
 from django.db.models import Q
@@ -18,6 +20,7 @@ from django.db import DatabaseError
 from decimal import Decimal
 from django.core.mail import send_mail
 from django.template.loader import render_to_string
+from django.db.models import Subquery,OuterRef,Q
 
 
 
@@ -101,6 +104,9 @@ class UserLoginAPIView(APIView):
             }, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 
+            
+        
+
 
 class BaseTokenView(APIView):
     
@@ -133,6 +139,7 @@ class BaseTokenView(APIView):
         
         except Exception as e:
             return None, Response({"status": "error", "message": "An error occurred while decoding the token", "error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
         
 import logging
 
@@ -1953,3 +1960,19 @@ class OrderTotalAmountSave(BaseTokenView):
 
 
         
+# class MessageAPiView(BaseTokenView):
+#     def post(self,request):
+#         authUser, error_response = self.get_user_from_token(request)
+#         if error_response:
+#             return error_response
+
+#         reciver = request.data.get('reciever')
+
+#         request.data["reciver"] = reciver
+#         request.data["sender"] = authUser
+
+
+
+#         serializer = MessageSerializer(order, data=request.data, partial=True)
+
+

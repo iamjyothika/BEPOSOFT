@@ -57,6 +57,7 @@ JWT_EXPIRATION_MINUTES = 1440
 # Application definition
 
 INSTALLED_APPS = [
+    'daphne',
     'django.contrib.admin',
     'django.contrib.auth',
     'django.contrib.contenttypes',
@@ -66,7 +67,8 @@ INSTALLED_APPS = [
     'corsheaders',
     'rest_framework',
     'beposoft_app',
-    'bepocart'
+    'bepocart',
+    'channels',
 ]
 
 MIDDLEWARE = [
@@ -98,7 +100,7 @@ TEMPLATES = [
     },
 ]
 
-WSGI_APPLICATION = 'beposoft.wsgi.application'
+ASGI_APPLICATION = 'beposoft.asgi.application'
 
 
 # Database
@@ -109,6 +111,15 @@ DATABASES = {
         'ENGINE': 'django.db.backends.sqlite3',
         'NAME': BASE_DIR / 'db.sqlite3',
     }
+}
+
+CHANNEL_LAYERS = {
+    "default": {
+        "BACKEND": "channels_redis.core.RedisChannelLayer",
+        "CONFIG": {
+            "hosts": [("localhost", 6379)],
+        },
+    },
 }
        
 
