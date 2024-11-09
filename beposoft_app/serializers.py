@@ -532,7 +532,8 @@ class BepocartSerializersView(serializers.ModelSerializer):
 class MessageSerializer(serializers.ModelSerializer):
     class Meta:
         model=ChatMessage
-        fields=('id','message','sender','receiver','is_read','date')
+        fields=('id','message','sender','receiver','is_read','date','reply_to')
+        
     
 
 

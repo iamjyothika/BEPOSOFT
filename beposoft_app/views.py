@@ -22,6 +22,13 @@ from django.core.mail import send_mail
 from django.template.loader import render_to_string
 from django.db.models import Subquery,OuterRef,Q
 
+# {"receiver_id": 5,    
+#   "message": "Thank you for your message!",   
+#   "reply_to": 2 #replyid
+# }
+
+
+
 
 
 class UserRegistrationAPIView(APIView):
@@ -1938,6 +1945,7 @@ class RemoveExistsOrderItems(BaseTokenView):
         except Exception as e :
             return Response({"errors": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
+
 class OrderTotalAmountSave(BaseTokenView):
     def put(self,request,pk):
         try:
@@ -1955,24 +1963,167 @@ class OrderTotalAmountSave(BaseTokenView):
             return Response({"errors": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
+class MessageSendView(BaseTokenView):
 
+    def post(self, request):
+        try:
+            # Get the authenticated user from the token
+            user, error_response = self.get_user_from_token(request)
+            if error_response:
+                return error_response
 
+            # Set sender to the authenticated user
+            sender = user
+            receiver_id = request.data.get('receiver_id')
+            message = request.data.get('message')
+            reply_to_id = request.data.get('reply_to')
 
+            # Validate required fields
+            if not receiver_id:
+                return Response(
+                    {"error": "Receiver ID required"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
 
+            # Get the receiver user object
+            receiver = get_object_or_404(User, id=receiver_id)
+            
+            # If there's a reply, get the original message and verify permissions
+            original_message = None
+            if reply_to_id:
+                original_message = get_object_or_404(ChatMessage, id=reply_to_id)
+
+                # Check if the user is allowed to reply
+                if original_message.receiver != sender and original_message.sender != sender:
+                    return Response(
+                        {"error": "You can only reply to your own conversations."},
+                        status=status.HTTP_400_BAD_REQUEST
+                    )
+
+            # Create the new message
+            chat_message = ChatMessage.objects.create(
+                sender=sender,
+                receiver=receiver,
+                message=message,
+                reply_to=original_message,
+                date=timezone.now()  # Add timestamp if not auto-added in model
+            )
+
+            # Prepare the response data
+            response_data = {
+                "message_sent": chat_message.message,
+                "sender_id": chat_message.sender.id,
+                "receiver_id": chat_message.receiver.id,
+                "date_sent": chat_message.date,
+            }
+
+            return Response(response_data, status=status.HTTP_201_CREATED)
         
-# class MessageAPiView(BaseTokenView):
-#     def post(self,request):
-#         authUser, error_response = self.get_user_from_token(request)
-#         if error_response:
-#             return error_response
 
-#         reciver = request.data.get('reciever')
+        except Exception as e:
+            return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-#         request.data["reciver"] = reciver
-#         request.data["sender"] = authUser
+class MessageReplyView(BaseTokenView):
+    def post(self, request):
+        try:
+            user, error_response = self.get_user_from_token(request)
+            if error_response:
+                return error_response
+
+            sender = user  # authenticated user from token
+            receiver_id = request.data.get("receiver_id")
+            message = request.data.get("message")
+            reply_to_id = request.data.get("reply_to")
+
+            if not receiver_id or not message or not reply_to_id:
+                return Response(
+                    {"error": "Receiver ID, message, and reply_to ID are required."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Attempt to retrieve the original message being replied to
+            try:
+                original_message = ChatMessage.objects.get(id=reply_to_id)
+            except ChatMessage.DoesNotExist:
+                return Response(
+                    {"error": f"Original message with id {reply_to_id} not found."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+
+            # Validate the reply permissions
+            if original_message.receiver != sender:
+                return Response(
+                    {"error": "You can only reply to messages sent to you."},
+                    status=status.HTTP_403_FORBIDDEN
+                )
+
+            receiver = get_object_or_404(User, id=receiver_id)
+            if receiver != original_message.sender:
+                return Response(
+                    {"error": "Receiver ID does not match the original message sender."},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+
+            # Create the reply message
+            reply_message = ChatMessage.objects.create(
+                sender=sender,
+                receiver=receiver,
+                message=message,
+                reply_to=original_message
+            )
+
+            # Serialize and return the new reply
+            reply_serializer = MessageSerializer(reply_message)
+            return Response(reply_serializer.data, status=status.HTTP_201_CREATED)
+
+        except Exception as e:
+            return Response(
+                {"error": "An error occurred while sending the reply: " + str(e)},
+    status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
-#         serializer = MessageSerializer(order, data=request.data, partial=True)
+class MessageHistoryView(BaseTokenView):
+  
 
+    def get(self, request):
+        try:
+            user, error_response = self.get_user_from_token(request)
+            if error_response:
+                return error_response
+          
+            
+            # Retrieve all messages sent by the user and their replies
+            sent_messages = ChatMessage.objects.filter(sender=user)
+            
+            # Serialize the messages and include replies
+            messages_data = []
+            
+            for message in sent_messages:
+                # Get replies to each message
+                replies = ChatMessage.objects.filter(reply_to=message)
 
+                # Serialize the main message and the replies
+                main_message_serializer = MessageSerializer(message)
+                replies_serializer = MessageSerializer(replies, many=True)
+
+                messages_data.append({
+                    "message": main_message_serializer.data,
+                    "replies": replies_serializer.data
+                })
+
+            return Response({"messages": messages_data}, status=status.HTTP_200_OK)
+
+        except ChatMessage.DoesNotExist:
+            return Response(
+                {"error": "No messages found."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+
+        except Exception as e:
+            return Response(
+                {"error": "An error occurred while retrieving messages: " + str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+            
+            

@@ -219,6 +219,7 @@ class Products(models.Model):
     
 
     def calculate_exclude_price(self):
+        
         if self.selling_price is not None:
             self.exclude_price = self.selling_price / (1 + self.tax / 100)
         else:
@@ -416,13 +417,21 @@ class ChatMessage(models.Model):
     message=models.CharField(max_length=1000)
     is_read=models.BooleanField(default=False)
     date=models.DateTimeField(auto_now_add=True)
+    reply_to = models.ForeignKey('self', on_delete=models.SET_NULL, null=True, blank=True, related_name='replies')
 
     class Meta:
-        ordering=['date']   
+        ordering=['-date']   
 
 
     def __str__(self):
         return f"{self.sender.username}-{self.receiver.username}"    
+    
+    def mark_as_read(self):
+        self.is_read = True
+        self.save()
+
+    def get_replies(self):
+        return self.replies.all()
 
 class OTPModel(models.Model):
     user = models.ForeignKey(User, on_delete=models.CASCADE)
