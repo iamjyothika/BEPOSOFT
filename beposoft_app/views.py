@@ -2022,64 +2022,10 @@ class MessageSendView(BaseTokenView):
 
         except Exception as e:
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
 
-class MessageReplyView(BaseTokenView):
-    def post(self, request):
-        try:
-            user, error_response = self.get_user_from_token(request)
-            if error_response:
-                return error_response
+        
 
-            sender = user  # authenticated user from token
-            receiver_id = request.data.get("receiver_id")
-            message = request.data.get("message")
-            reply_to_id = request.data.get("reply_to")
-
-            if not receiver_id or not message or not reply_to_id:
-                return Response(
-                    {"error": "Receiver ID, message, and reply_to ID are required."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            # Attempt to retrieve the original message being replied to
-            try:
-                original_message = ChatMessage.objects.get(id=reply_to_id)
-            except ChatMessage.DoesNotExist:
-                return Response(
-                    {"error": f"Original message with id {reply_to_id} not found."},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-
-            # Validate the reply permissions
-            if original_message.receiver != sender:
-                return Response(
-                    {"error": "You can only reply to messages sent to you."},
-                    status=status.HTTP_403_FORBIDDEN
-                )
-
-            receiver = get_object_or_404(User, id=receiver_id)
-            if receiver != original_message.sender:
-                return Response(
-                    {"error": "Receiver ID does not match the original message sender."},
-                    status=status.HTTP_400_BAD_REQUEST
-                )
-
-            # Create the reply message
-            reply_message = ChatMessage.objects.create(
-                sender=sender,
-                receiver=receiver,
-                message=message,
-                reply_to=original_message
-            )
-
-            # Serialize and return the new reply
-            reply_serializer = MessageSerializer(reply_message)
-            return Response(reply_serializer.data, status=status.HTTP_201_CREATED)
-
-        except Exception as e:
-            return Response(
-                {"error": "An error occurred while sending the reply: " + str(e)},
-    status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
 
