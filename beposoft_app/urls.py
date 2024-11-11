@@ -105,7 +105,7 @@ urlpatterns = [
     path('api/bank/view/<int:pk>/',BankAccountView.as_view()),
 
     path('api/chat/sendmessage/',MessageSendView.as_view()),
-    path('api/chat/inbox/',MessageHistoryView.as_view()),
+    path('api/chat/inbox/<int:pk>/',MessageHistoryView.as_view()),
 
     
     

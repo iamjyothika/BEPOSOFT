@@ -2024,52 +2024,47 @@ class MessageSendView(BaseTokenView):
             return Response({"error": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 
-        
-
-
-
-
 class MessageHistoryView(BaseTokenView):
-  
 
-    def get(self, request):
+    def get(self, request, pk):
         try:
+            # Authenticate logged-in user
             user, error_response = self.get_user_from_token(request)
             if error_response:
                 return error_response
-          
-            
-            # Retrieve all messages sent by the user and their replies
-            sent_messages = ChatMessage.objects.filter(sender=user)
-            
-            # Serialize the messages and include replies
-            messages_data = []
-            
-            for message in sent_messages:
-                # Get replies to each message
-                replies = ChatMessage.objects.filter(reply_to=message)
 
-                # Serialize the main message and the replies
-                main_message_serializer = MessageSerializer(message)
-                replies_serializer = MessageSerializer(replies, many=True)
+            # Get the receiver by ID
+            receiver = get_object_or_404(User, pk=pk)
 
-                messages_data.append({
-                    "message": main_message_serializer.data,
-                    "replies": replies_serializer.data
-                })
+            # Retrieve messages where the logged-in user is the sender
+            sent_messages = ChatMessage.objects.filter(sender=user, receiver=receiver).order_by('date')
 
-            return Response({"messages": messages_data}, status=status.HTTP_200_OK)
+            # Retrieve replies where the receiver replied back to the authenticated user
+            reply_messages = ChatMessage.objects.filter(
+                sender=receiver,
+                receiver=user,
+                reply_to__in=sent_messages
+            ).order_by('date')
 
-        except ChatMessage.DoesNotExist:
-            return Response(
-                {"error": "No messages found."},
-                status=status.HTTP_404_NOT_FOUND
-            )
+            # Serialize the messages
+            sent_serializer = MessageSerializer(sent_messages, many=True)
+            reply_serializer = MessageSerializer(reply_messages, many=True)
+
+            # Organize messages with replies nested under their respective parent messages
+            message_data = sent_serializer.data
+            reply_data = reply_serializer.data
+            formatted_messages = []
+
+            for message in message_data:
+                # Add a 'replies' key to each main message
+                message['replies'] = [reply for reply in reply_data if reply['reply_to'] == message['id']]
+                formatted_messages.append(message)
+
+            return Response({"data": formatted_messages}, status=status.HTTP_200_OK)
 
         except Exception as e:
+            print("Error retrieving message history", {e})
             return Response(
-                {"error": "An error occurred while retrieving messages: " + str(e)},
+                {"error": "An error occurred while retrieving messages."},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-            
-            
