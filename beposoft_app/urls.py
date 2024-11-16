@@ -101,6 +101,8 @@ urlpatterns = [
     path('api/bank/view/<int:pk>/',BankAccountView.as_view()),
     
     
+    
+    
     path('api/payment/<int:pk>/reciept/',CreateReceiptAgainstInvoice.as_view()),
     path('api/customer/<int:pk>/ledger/',CustomerOrderLedgerdata.as_view()),
     
@@ -109,9 +111,17 @@ urlpatterns = [
     
     path('api/perfoma/invoice/create/',CreatePerfomaInvoice.as_view()),
     path('api/perfoma/invoices/',PerfomaInvoiceListView.as_view()),
-    path('api/perfoma/<str:invoice>/invoice/',PerfomaInvoiceDetailView.as_view())
+    path('api/perfoma/<str:invoice>/invoice/',PerfomaInvoiceDetailView.as_view()),
+
     
     
+    path('api/warehouse/datadd/',WarehouseDataView.as_view()),
+    path('api/warehouse/detail/<int:pk>',WarehouseDetailView.as_view()),
+    path('api/warehouse/boxdetail/',DailyGoodsView.as_view()),
+    path('api/warehousedata/<str:date>/',DailyGoodsBydate.as_view()),
+    
+    path('api/grvdata/',GRVaddView.as_view()),
+    path('api/grvget/',GRVgetView.as_view())
     
 ]
 

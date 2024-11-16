@@ -342,6 +342,8 @@ class OrderItemSerializer(serializers.ModelSerializer):
         fields = ['product', 'name', 'description', 'rate', 'tax', 'quantity', 'price']
 
 class OrderSerializer(serializers.ModelSerializer):
+    customer=CustomerModelSerializer
+    billing_address=ShippingSerializers
     class Meta:
         model = Order
         fields = "__all__"
@@ -360,6 +362,50 @@ class PaymentRecieptsViewSerializers(serializers.ModelSerializer):
         fields = '__all__'
 
 
+
+class WarehousedataSerializer(serializers.ModelSerializer):
+    customer = serializers.CharField(source="order.customer.name")
+    invoice = serializers.CharField(source = "order.invoice")
+    family=serializers.CharField(source="order.family.name") 
+
+
+    class Meta:
+        model = Warehousedata
+        fields = [
+            'id', 'box', 'weight', 'length', 'breadth', 'height', 'image',
+            'parcel_service', 'tracking_id', 'shipping_charge', 'status',
+            'shipped_date','order', 'packed_by','customer','invoice','family'
+        ]
+class WarehouseBoxesDataSerializer(serializers.ModelSerializer):
+    class Meta:
+        model=Warehousedata
+        fields='__all__'
+
+              
+
+  
+    def get_volume_weight(self, obj):
+        try:
+            # Ensure length, breadth, and height are valid numbers
+            length = float(obj.length)
+            breadth = float(obj.breadth)
+            height = float(obj.height)
+
+            # Calculate volume weight
+            volume_weight = (length * breadth * height) / 6000  # Division factor can be adjusted
+            return round(volume_weight, 2)  # Return rounded value
+        except (ValueError, TypeError):
+            return None  # Return None if calculation fails
+       
+
+  
+        
+
+
+        
+
+
+
 class OrderModelSerilizer(serializers.ModelSerializer):
     manage_staff = serializers.CharField(source="manage_staff.name")
     family = serializers.CharField(source="family.name")
@@ -368,11 +414,12 @@ class OrderModelSerilizer(serializers.ModelSerializer):
     customer = CustomerSerilizers(read_only=True)
     payment_receipts =  PaymentRecieptsViewSerializers(many=True,read_only=True)
     customerID = serializers.IntegerField(source="customer.pk")
+    warehouse_orders=WarehousedataSerializer(many=True,read_only=True)
 
-    
+
     class Meta:
         model = Order
-        fields = ["id","manage_staff","company","customer","invoice","billing_address","shipping_mode","code_charge","order_date","family","state","payment_status","status","total_amount","bank","payment_method","payment_receipts","shipping_charge","customerID"]
+        fields = ["id","manage_staff","company","customer","invoice","billing_address","shipping_mode","code_charge","order_date","family","state","payment_status","status","total_amount","bank","payment_method","payment_receipts","shipping_charge","customerID","warehouse_orders"]
 
 
 class LedgerSerializers(serializers.ModelSerializer):
@@ -634,8 +681,12 @@ class PerfomaInvoiceProductsSerializers(serializers.ModelSerializer):
                   "state","payment_status","status","total_amount",
                   "bank","payment_method","payment_receipts",
                   "shipping_charge","customerID","perfoma_items"]
-
         
 
-
-        
+class GRVSerializer(serializers.ModelSerializer):
+    customer = serializers.CharField(source="order.customer.name")
+    staff=serializers.CharField(source='order.manage_staff.name')
+    invoice = serializers.CharField(source = "order.invoice")
+    class Meta:
+        model=GRVModel
+        fields=['order','product','returnreason','price','quantity','remark','note','status','customer','invoice','staff']

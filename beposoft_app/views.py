@@ -16,6 +16,7 @@ from django.conf import settings
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import DatabaseError
 from decimal import Decimal
+from django.shortcuts import get_object_or_404
 
 
 
@@ -1296,7 +1297,9 @@ class CustomerOrderItems(BaseTokenView):
             
             orderSerilizer = OrderModelSerilizer(order, many=False)
             serializer = OrderItemModelSerializer(orderItems, many=True)
-            return Response({"order":orderSerilizer.data,"items":serializer.data}, status=status.HTTP_200_OK)
+            warehouse_data = Warehousedata.objects.filter(order=order_id)
+            warehouse_data_serializer = WarehousedataSerializer(warehouse_data, many=True)
+            return Response({"order":orderSerilizer.data,"items":serializer.data,"warehouse_details": warehouse_data_serializer.data}, status=status.HTTP_200_OK)
 
         except ObjectDoesNotExist:
             return Response({"status": "error", "message": "Orders not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -1985,5 +1988,226 @@ class PerfomaInvoiceDetailView(BaseTokenView):
         
         except Exception as e:
             return Response({"status": "error", "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+class WarehouseDataView(BaseTokenView):
+    def post(self, request):
+        try:
+            authUser, error_response = self.get_user_from_token(request)
+            if error_response:
+                return error_response
+                
+
+            # Check if request.data is a list  in bulk   (1 and more data) creatin
+            if isinstance(request.data, list):
+                serializer = WarehouseBoxesDataSerializer(data=request.data, many=True)
+            else:
+                # Fallback to single object creation if not a list
+                serializer = WarehouseBoxesDataSerializer(data=request.data)
+
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_201_CREATED)
+            print(serializer.errors)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"status": "error", "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+class WarehouseDetailView(BaseTokenView):
+    def put(self,request,pk):
+        try:
+            authUser,error_response=self.get_user_from_token(request)  
+            if error_response:
+                return error_response
+            warehousedata = get_object_or_404(pk)
+            serializer = WarehousedataSerializer(warehousedata, data=request.data)
+            if serializer.is_valid():
+                serializer.save()
+                return Response(serializer.data, status=status.HTTP_200_OK)
+            return Response(serializer.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"status": "error", "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+    def delete(self, request, pk):
+        try:
+            authUser, error_response = self.get_user_from_token(request)
+            if error_response:
+                return error_response
+            warehousedata = get_object_or_404(Warehousedata, pk=pk)
+            warehousedata.delete()
+            return Response({"status": "success", "message": "Warehouse data deleted"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        except Exception as e:
+            return Response({"status": "error", "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                            
+       
+class DailyGoodsView(BaseTokenView):
+    def get(self, request):
+        try:
+            authUser, error_response = self.get_user_from_token(request)
+            if error_response:
+                return error_response
+            
+            warehouse=Warehousedata.objects.all()
+            
+            seen_dates = set()
+            response_data=[]
+        
+            for box_detail in warehouse:
+                print(f"Weight: {box_detail.weight}, Length: {box_detail.length}, Breadth: {box_detail.breadth}, Height: {box_detail.height}")
+                if box_detail.shipped_date not in seen_dates:
+                    boxes_for_date = warehouse.filter(shipped_date=box_detail.shipped_date)
+
+                    # Calculate total weight
+                   
+                    # Calculate total volume weight
+                    total_weight = 0
+                    for box in boxes_for_date:
+                        try:
+                            total_weight += float(box.weight)
+
+
+                        except (ValueError, TypeError):
+                            continue  # Skip invalid weights
+
+                    # Calculate total volume weight
+                    total_volume_weight = 0
+                    for box in boxes_for_date:
+                        try:
+                            length = float(box.length)
+                            breadth = float(box.breadth)
+                            height = float(box.height)
+                            total_volume_weight += (length * breadth * height) / 6000
+                        except (ValueError, TypeError):
+                            continue 
+                    total_shipping_charge =0  
+                    for box in boxes_for_date:
+                        try:
+                            total_shipping_charge += float(box.shipping_charge)
+                        except (ValueError, TypeError):
+                            continue
+
+                    # Serialize the boxes for the date
+                    serializer = WarehousedataSerializer(boxes_for_date, many=True)
+
+                    # Add the data for the current shipped_date
+                    response_data.append({
+                        "shipped_date": box_detail.shipped_date,
+                        "total_weight": round(total_weight, 2),
+                        "total_volume_weight": round(total_volume_weight, 2),
+                        "total_shipping_charge":round(total_shipping_charge,2)          #shipping_charge=delivery_charge
+                        # "boxes": serializer.data
+                    })
+
+                    seen_dates.add(box_detail.shipped_date)
+
+            return Response(response_data, status=status.HTTP_200_OK)
+        except Exception as e:
+            print(e)
+            return Response({"status": "error", "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class DailyGoodsBydate(BaseTokenView):
+    def get(self,request,date):
+        try:
+            authUser, error_response = self.get_user_from_token(request)
+            if error_response:
+                return error_response
+      
+            warehouse_data = Warehousedata.objects.filter(shipped_date=date)
+            serializer = WarehousedataSerializer(warehouse_data, many=True)
+
+            if not warehouse_data.exists():
+                return Response(
+                    {"status": "error", "message": f"No data found for shipped_date: {date}"},
+                    status=status.HTTP_404_NOT_FOUND
+                ) 
+            return Response(serializer.data,status=status.HTTP_200_OK)
+        except Exception as e:
+            print(e)
+            return Response({"status": "error", "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+
+class GRVaddView(BaseTokenView):
+    def post(self,request):
+        try:
+            authUser, error_response = self.get_user_from_token(request)
+            if error_response:
+                return error_response
+            grvdata=GRVSerializer(data=request.data)
+            if grvdata.is_valid():
+                grvdata.save()
+                return Response({"status": "success",
+                    "message": "Added successfullly",
+                    "data": grvdata.data
+                }, status=status.HTTP_201_CREATED)
+            return Response(serializers.errors,status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            print(e)
+            return Response(status==status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+class GRVgetView(BaseTokenView):
+    def get(self,request):
+        try:
+            authUser, error_response = self.get_user_from_token(request)
+            if error_response:
+                return error_response
+           
+            grvdata = GRVModel.objects.all()# Filter GRVs for this staff
+
+            if not grvdata.exists():
+                return Response(
+                    {"status": "error", "message": "No GRV records found for this staff."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            
+            # Serialize the GRV data
+            serializer = GRVSerializer(grvdata, many=True)
+            return Response({"status": "success", "data": serializer.data}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response(
+                {"status": "error", "message": str(e)},
+                status=status.HTTP_500_INTERNAL_SERVER_ERROR
+            )
+            
+            
+
+
+        
+
+
+            
+            
+
+
+              
+       
+                    
+
+
+
+
+             
+        
+                 
+
+  
+            
+        
+
+    
+  
+
+
+
+        
+
+        
+        
+        
+        
+        
+
 
         

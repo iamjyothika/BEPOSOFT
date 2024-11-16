@@ -5,6 +5,8 @@ import re
 from django.core.exceptions import ValidationError
 from decimal import Decimal
 import random
+from datetime import timedelta
+from django.utils import timezone
 # Create your models here.
 
 
@@ -547,3 +549,50 @@ class PerfomaInvoiceOrderItem(models.Model):
 
     def __str__(self):
         return f"{self.product.name} (x{self.quantity})"
+    
+
+class Warehousedata(models.Model):
+    order=models.ForeignKey(Order,on_delete=models.CASCADE,related_name='warehouse_orders')
+    box=models.CharField(max_length=100)
+    weight=models.CharField(max_length=30)
+    length=models.CharField(max_length=30)
+    breadth=models.CharField(max_length=30)
+    height=models.CharField(max_length=30,null=True)
+    image=models.ImageField(upload_to='images/',null=True)
+    packed_by=models.ForeignKey(User,on_delete=models.CASCADE)
+    parcel_service=models.CharField(max_length=30,null=True)  
+    tracking_id=models.IntegerField(null=True)
+    shipping_charge=models.DecimalField(max_digits=10, decimal_places=2,null=True)
+    status=models.CharField(max_length=30,null=True)
+    shipped_date=models.DateField()
+
+    def __str__(self):
+        return f"{self.box} - {self.parcel_service} ({self.tracking_id})"
+
+
+class GRVModel(models.Model):
+    STATUS_CHOICES=[
+        ('pending', 'Pending'),
+        ('approved', 'Approved'),
+        ('rejected', 'Rejected'),
+    ]
+    REMARK_CHOICES=[
+        ('return','Return'),
+        ('refund','Refund')
+    ]
+    order=models.ForeignKey(Order,on_delete=models.CASCADE)
+    product=models.CharField(max_length=30)
+    returnreason=models.CharField(max_length=200)
+    price=models.DecimalField(max_digits=10, decimal_places=2)
+    quantity=models.IntegerField()
+    remark=models.CharField(max_length=20,choices=REMARK_CHOICES)
+    status=models.CharField(max_length=30,choices=STATUS_CHOICES,default='pending')
+    note=models.TextField()
+
+
+
+
+
+
+
+   

@@ -24,6 +24,7 @@ admin.site.register(BeposoftCart)
 admin.site.register(Bank)
 admin.site.register(PaymentReceipt)
 admin.site.register(Company)
+admin.site.register(Warehousedata)
 
 
 
