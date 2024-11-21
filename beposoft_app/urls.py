@@ -1,5 +1,6 @@
 from django.urls import path
 from .views import *
+from . import views
 
 
 
@@ -121,7 +122,28 @@ urlpatterns = [
     path('api/warehousedata/<str:date>/',DailyGoodsBydate.as_view()),
     
     path('api/grvdata/',GRVaddView.as_view()),
-    path('api/grvget/',GRVgetView.as_view())
+    path('api/grvget/',GRVgetView.as_view()),
+    path('api/getgrv/<int:pk>',GRVGetViewById.as_view()),
+    path('api/grvupdate/<int:pk>/',GRVUpdateView.as_view()),
+
+
+    path('api/salesreport/',SalesReportView.as_view()),
+
+
+
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+   
+    path('productsinexcel/',views.get_products_excel)
     
 ]
+
 

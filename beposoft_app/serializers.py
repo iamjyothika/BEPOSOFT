@@ -419,7 +419,7 @@ class OrderModelSerilizer(serializers.ModelSerializer):
 
     class Meta:
         model = Order
-        fields = ["id","manage_staff","company","customer","invoice","billing_address","shipping_mode","code_charge","order_date","family","state","payment_status","status","total_amount","bank","payment_method","payment_receipts","shipping_charge","customerID","warehouse_orders"]
+        fields = ["id","manage_staff","updated_at","company","customer","invoice","billing_address","shipping_mode","code_charge","order_date","family","state","payment_status","status","total_amount","bank","payment_method","payment_receipts","shipping_charge","customerID","warehouse_orders"]
 
 
 class LedgerSerializers(serializers.ModelSerializer):
@@ -687,6 +687,12 @@ class GRVSerializer(serializers.ModelSerializer):
     customer = serializers.CharField(source="order.customer.name")
     staff=serializers.CharField(source='order.manage_staff.name')
     invoice = serializers.CharField(source = "order.invoice")
+    order_date = serializers.CharField(source="order.order_date")
     class Meta:
         model=GRVModel
-        fields=['order','product','returnreason','price','quantity','remark','note','status','customer','invoice','staff']
+        fields=['order','product','returnreason','price','quantity','remark','note','status','customer','invoice','staff',"order_date",'date','time','updated_at']
+
+class GRVModelSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = GRVModel
+        fields ='__all__'

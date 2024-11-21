@@ -7,6 +7,7 @@ from decimal import Decimal
 import random
 from datetime import timedelta
 from django.utils import timezone
+from django.utils.timezone import now 
 # Create your models here.
 
 
@@ -360,6 +361,10 @@ class Order(models.Model):
         ('Bank Transfer', 'Bank Transfer'),
         ('Cash on Delivery', 'Cash on Delivery'),
     ], default='Net Banking')
+    date=models.DateField(null=True)
+    time=models.TimeField(null=True)
+    updated_at = models.DateTimeField(auto_now_add=True,null=True, blank=True)
+   
 
     def save(self, *args, **kwargs):
         if not self.invoice:
@@ -383,9 +388,22 @@ class Order(models.Model):
         else:
             number = 1
         return str(number).zfill(6)  # Zero-pad to 6 digits
+    def update_status(self, new_status):
+        """
+        Updates the status and sets the updated_at field to the current time.
+        """
+        if self.status != new_status:  # Check if the status is changing
+            self.status = new_status
+            self.updated_at = now()  # Set current timestamp
+            print(f"Status updated to '{new_status}' on {self.updated_at}")
+            self.save()  # Save the changes
+        else:
+            print("No change in status.")
 
     def __str__(self):
         return f"Order {self.invoice} by {self.customer}"
+    
+
     
 
 
@@ -504,6 +522,7 @@ class PerfomaInvoiceOrder(models.Model):
         ('Cash on Delivery', 'Cash on Delivery'),
     ], default='Net Banking')
 
+
     def save(self, *args, **kwargs):
         if not self.invoice:
             self.invoice = self.generate_invoice_number()
@@ -581,13 +600,29 @@ class GRVModel(models.Model):
         ('refund','Refund')
     ]
     order=models.ForeignKey(Order,on_delete=models.CASCADE)
-    product=models.CharField(max_length=30)
+    product=models.CharField(max_length=100)
     returnreason=models.CharField(max_length=200)
     price=models.DecimalField(max_digits=10, decimal_places=2)
     quantity=models.IntegerField()
-    remark=models.CharField(max_length=20,choices=REMARK_CHOICES)
-    status=models.CharField(max_length=30,choices=STATUS_CHOICES,default='pending')
-    note=models.TextField()
+    remark=models.CharField(max_length=20,choices=REMARK_CHOICES,null=True)
+    status=models.CharField(max_length=30,choices=STATUS_CHOICES,default='pending',null=True)
+    date=models.DateField(null=True)
+    time=models.TimeField(null=True)
+    note=models.TextField(null=True)
+    updated_at = models.DateTimeField(null=True, blank=True)
+
+    def update_status(self, new_status):
+        """
+        Updates the status and sets the updated_at field to the current time.
+        """
+        if self.status != new_status:  # Check if the status is changing
+            self.status = new_status
+            self.updated_at = now()  # Set current timestamp
+            print(f"Status updated to '{new_status}' on {self.updated_at}")
+            self.save()  # Save the changes
+        else:
+            print("No change in status.")
+    
 
 
 

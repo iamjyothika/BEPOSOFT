@@ -17,6 +17,28 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.db import DatabaseError
 from decimal import Decimal
 from django.shortcuts import get_object_or_404
+import pandas as pd
+from django.http import HttpResponse
+from datetime import datetime
+
+
+def get_products_excel(request):
+   
+    # Query the Person model to get all records
+    products = Products.objects.all()
+    
+    # Convert the QuerySet to a DataFrame
+    df = pd.DataFrame(list(products))
+
+    # Define the Excel file response
+    response = HttpResponse(content_type='application/vnd.openxmlformats-officedocument.spreadsheetml.sheet')
+    response['Content-Disposition'] = 'attachment; filename=persons.xlsx'
+
+    # Use Pandas to write the DataFrame to an Excel file
+    df.to_excel(response, index=False, engine='openpyxl')
+
+    return response
+
 
 
 
@@ -1292,14 +1314,14 @@ class CustomerOrderItems(BaseTokenView):
             
             order = Order.objects.filter(pk=order_id).first()
             orderItems = OrderItem.objects.filter(order=order_id)
-            if not orderItems.exists():
-                return Response({"status": "error", "message": "No orders Items found"}, status=status.HTTP_404_NOT_FOUND)
+            # if not orderItems.exists():
+            #     return Response({"status": "error", "message": "No orders Items found"}, status=status.HTTP_404_NOT_FOUND)
             
             orderSerilizer = OrderModelSerilizer(order, many=False)
             serializer = OrderItemModelSerializer(orderItems, many=True)
             warehouse_data = Warehousedata.objects.filter(order=order_id)
-            warehouse_data_serializer = WarehousedataSerializer(warehouse_data, many=True)
-            return Response({"order":orderSerilizer.data,"items":serializer.data,"warehouse_details": warehouse_data_serializer.data}, status=status.HTTP_200_OK)
+            # warehouse_data_serializer = WarehousedataSerializer(warehouse_data, many=True)
+            return Response({"order":orderSerilizer.data,"items":serializer.data}, status=status.HTTP_200_OK)
 
         except ObjectDoesNotExist:
             return Response({"status": "error", "message": "Orders not found"}, status=status.HTTP_404_NOT_FOUND)
@@ -1333,6 +1355,7 @@ class CustomerOrderStatusUpdate(BaseTokenView):
 
             # Update the order status
             order.status = new_status
+            order.updated_at = now()
             order.save()
 
             return Response({"status": "success", "message": "Order status updated successfully"}, status=status.HTTP_200_OK)
@@ -1340,6 +1363,7 @@ class CustomerOrderStatusUpdate(BaseTokenView):
         except DatabaseError:
             return Response({"status": "error", "message": "Database error occurred"}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         except Exception as e:
+            print(e)
             return Response({"status": "error", "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
         
@@ -2086,13 +2110,17 @@ class DailyGoodsView(BaseTokenView):
                             total_shipping_charge += float(box.shipping_charge)
                         except (ValueError, TypeError):
                             continue
+                    total_boxes = boxes_for_date.count()    
 
                     # Serialize the boxes for the date
                     serializer = WarehousedataSerializer(boxes_for_date, many=True)
+                
 
                     # Add the data for the current shipped_date
                     response_data.append({
                         "shipped_date": box_detail.shipped_date,
+                        "total_boxes":total_boxes,
+
                         "total_weight": round(total_weight, 2),
                         "total_volume_weight": round(total_volume_weight, 2),
                         "total_shipping_charge":round(total_shipping_charge,2)          #shipping_charge=delivery_charge
@@ -2115,16 +2143,11 @@ class DailyGoodsBydate(BaseTokenView):
                 return error_response
       
             warehouse_data = Warehousedata.objects.filter(shipped_date=date)
-            serializer = WarehousedataSerializer(warehouse_data, many=True)
-
             if not warehouse_data.exists():
-                return Response(
-                    {"status": "error", "message": f"No data found for shipped_date: {date}"},
-                    status=status.HTTP_404_NOT_FOUND
-                ) 
+                return Response({"Order Not Found"})
+            serializer = WarehousedataSerializer(warehouse_data, many=True)
             return Response(serializer.data,status=status.HTTP_200_OK)
         except Exception as e:
-            print(e)
             return Response({"status": "error", "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 
@@ -2134,17 +2157,21 @@ class GRVaddView(BaseTokenView):
             authUser, error_response = self.get_user_from_token(request)
             if error_response:
                 return error_response
-            grvdata=GRVSerializer(data=request.data)
+            if isinstance(request.data, list):
+                grvdata = GRVModelSerializer(data=request.data, many=True)
+            else:
+                # Fallback to single object creation if not a list
+                grvdata = GRVModelSerializer(data=request.data)
             if grvdata.is_valid():
                 grvdata.save()
                 return Response({"status": "success",
                     "message": "Added successfullly",
                     "data": grvdata.data
-                }, status=status.HTTP_201_CREATED)
-            return Response(serializers.errors,status=status.HTTP_400_BAD_REQUEST)
+                }, status=status.HTTP_200_OK)
+            return Response(grvdata.errors,status=status.HTTP_400_BAD_REQUEST)
         except Exception as e:
             print(e)
-            return Response(status==status.HTTP_500_INTERNAL_SERVER_ERROR)
+            return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
 
 class GRVgetView(BaseTokenView):
@@ -2170,31 +2197,123 @@ class GRVgetView(BaseTokenView):
                 {"status": "error", "message": str(e)},
                 status=status.HTTP_500_INTERNAL_SERVER_ERROR
             )
-            
+class GRVGetViewById(BaseTokenView):
+    def get(self, request, pk):
+        try:
+            authUser, error_response = self.get_user_from_token(request)
+            if error_response:
+                return error_response
+            grvs=GRVModel.objects.get(pk=pk)
+            serializer = GRVModelSerializer(grvs)
+            return Response({"status": "success", "data": serializer.data}, status=status.HTTP_200_OK)
+        except Exception as e:
+            return Response(status=status.HTTP_500_INTERNAL_SERVER_ERROR)
             
 
 
+class GRVUpdateView(BaseTokenView):
+    
+    def put(self, request,pk):
+        try:
+            authUser, error_response = self.get_user_from_token(request)
+            if error_response:
+                return error_response
+            grv = get_object_or_404(GRVModel, pk=pk)
+            grvdata = GRVModelSerializer(grv, data=request.data,partial=True)
+            if grvdata.is_valid():
+                grvdata.save()
+                
+                return Response({"status": "success", "message": "GRV updated successfully"}, status=status.HTTP_200_OK)
+            return Response(grvdata.errors, status=status.HTTP_400_BAD_REQUEST)
+        except Exception as e:
+            return Response({"status": "error", "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-
+    
+            
+        
+                
 
             
-            
 
+
+
+
+from django.db.models import Sum
+class SalesReportView(APIView):
+    def get(self, request):
+        try:
+       
+            orders=Order.objects.all()
+            approved_statuses = [
+                'Approved', 
+                'Shipped', 
+                'Invoice Created', 
+                'Invoice Approved', 
+                'Waiting For Confirmation',
+                'Invoice Rejectd' 
+                'To Print', 
+                'Processing', 
+                'Completed'
+            ]
+            distinct_dates = orders.values_list('order_date', flat=True).distinct()
+            report_data = []
+            total_bills=Order.objects.count()
+            print(f"The number of total bills:{total_bills}")
+            total_amount = orders.aggregate(total=Sum('total_amount'))['total'] or 0
+            print(f"Total amount:{total_amount}")
+
+
+      
+            for date in distinct_dates:
+                print(f"The date:{date}")
+                daily_orders = orders.filter(order_date=date)
+                print(f"Total orders for {date}: {daily_orders.count()}")
+                amount=daily_orders.aggregate(total=Sum('total_amount'))['total'] or 0
+                bills_in_date=daily_orders.count()
+               
+                approved_bills = daily_orders.filter(status__in=approved_statuses)
+                approved_count = approved_bills.count()
+                approved_amount = approved_bills.aggregate(total=Sum('total_amount'))['total'] or 0
+                print(f"Approved bills for {date}: {approved_count}, Total approved amount: {approved_amount}")
+
+                
+                # Rejected bills and amount for the date
+                rejected_bills = daily_orders.exclude(status__in=approved_statuses)
+                rejected_count = rejected_bills.count()
+                rejected_amount = rejected_bills.aggregate(total=Sum('total_amount'))['total'] or 0
+                print(f"Rejected bills for {date}: {rejected_count}, Total rejected amount: {rejected_amount}")
+
+                # Append the results for the date
+                report_data.append({
+                    "date": date,
+                    "total_bills_in_date":bills_in_date,
+                    "amount": amount,
+                    "approved": {
+                        "bills": approved_count,
+                        "amount": approved_amount,
+                    },
+                    "rejected": {
+                        "bills": rejected_count,
+                        "amount": rejected_amount,
+                    },
+                })
 
               
+               
+                
+            return Response({"Sales report":report_data},status=status.HTTP_200_OK)    
+        except Exception as e:
+            return Response({"status": "error", "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+              
        
-                    
 
+                   
 
-
-
-             
-        
-                 
 
   
-            
         
+            
+    
 
     
   
@@ -2207,6 +2326,9 @@ class GRVgetView(BaseTokenView):
         
         
         
+        
+
+
         
 
 
