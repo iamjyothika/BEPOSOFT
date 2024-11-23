@@ -361,9 +361,9 @@ class Order(models.Model):
         ('Bank Transfer', 'Bank Transfer'),
         ('Cash on Delivery', 'Cash on Delivery'),
     ], default='Net Banking')
-    date=models.DateField(null=True)
+ 
     time=models.TimeField(null=True)
-    updated_at = models.DateTimeField(auto_now_add=True,null=True, blank=True)
+    updated_at = models.DateField(auto_now_add=True,null=True, blank=True)
    
 
     def save(self, *args, **kwargs):
@@ -622,6 +622,21 @@ class GRVModel(models.Model):
             self.save()  # Save the changes
         else:
             print("No change in status.")
+
+
+class ExpenseModel(models.Model):
+    company=models.ForeignKey(Company,on_delete=models.CASCADE)
+    payed_by=models.ForeignKey(User,on_delete=models.CASCADE)
+    bank=models.ForeignKey(Bank,on_delete=models.CASCADE)
+    purpose_of_payment=models.TextField()
+    amount=models.DecimalField(max_digits=10,decimal_places=2,null=True)
+    expense_date=models.DateField()
+    transaction_id=models.IntegerField()
+    description=models.TextField()
+    added_by=models.CharField(max_length=30,null=True)
+
+
+
     
 
 

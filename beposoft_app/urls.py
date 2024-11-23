@@ -28,6 +28,9 @@ urlpatterns = [
     path('api/familys/',FamilyAllView.as_view(),name="familys"),  # completed
     path('api/family/update/<int:pk>/',FamilyUpdateView.as_view(),name="family-update"),  # completed
 
+    path('api/company/data/',CompanyCreateApiView.as_view()),
+    path('api/company/update-del/<int:pk>',CompanyUpdateView.as_view()),
+
 
     path('api/add/product/',ProductCreateView.as_view(),name="add-product"), # completed
     path('api/products/',ProductListView.as_view(),name="products"), # completed
@@ -106,6 +109,8 @@ urlpatterns = [
     
     path('api/payment/<int:pk>/reciept/',CreateReceiptAgainstInvoice.as_view()),
     path('api/customer/<int:pk>/ledger/',CustomerOrderLedgerdata.as_view()),
+
+    path('api/payment-receipts/', PaymentReceiptView.as_view()),
     
     
     
@@ -126,8 +131,19 @@ urlpatterns = [
     path('api/getgrv/<int:pk>',GRVGetViewById.as_view()),
     path('api/grvupdate/<int:pk>/',GRVUpdateView.as_view()),
 
+    path('api/expense/add/',ExpensAddView.as_view()),
+    path('api/expense/get/',ExpenseGetView.as_view()),
+    path('api/expense/get/<int:pk>/',ExpenseUpdate.as_view()),
+
 
     path('api/salesreport/',SalesReportView.as_view()),
+    path('api/invoicereport/<str:date>/',InvoiceReportView.as_view()),
+    path('api/bills/<str:date>/<int:pk>/',BillsView.as_view()),
+
+
+    path('api/credit/sales/',AllCreditSales.as_view()),
+    path('api/stock/products/',StocKProductView.as_view()),
+    
 
 
 

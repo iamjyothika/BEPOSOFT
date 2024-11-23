@@ -26,6 +26,7 @@ admin.site.register(PaymentReceipt)
 admin.site.register(Company)
 admin.site.register(Warehousedata)
 admin.site.register(GRVModel)
+admin.site.register(ExpenseModel)
 
 
 

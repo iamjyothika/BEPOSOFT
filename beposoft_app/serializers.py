@@ -2,6 +2,12 @@ from rest_framework import serializers
 from .models import *
 from django.contrib.auth.hashers import check_password, make_password
 from django.db import transaction
+from datetime import datetime
+
+
+
+
+
 class UserRegistrationSerializer(serializers.ModelSerializer):
     password = serializers.CharField(write_only=True, required=True)
     retype_password = serializers.CharField(write_only=True, required=True)
@@ -690,9 +696,39 @@ class GRVSerializer(serializers.ModelSerializer):
     order_date = serializers.CharField(source="order.order_date")
     class Meta:
         model=GRVModel
-        fields=['order','product','returnreason','price','quantity','remark','note','status','customer','invoice','staff',"order_date",'date','time','updated_at']
+        fields=['order','id','product','returnreason','price','quantity','remark','note','status','customer','invoice','staff',"order_date",'date','time','updated_at']
+    def to_representation(self, instance):
+        representation = super().to_representation(instance)
+        if 'time' in representation and representation['time']:
+            try:
+                # Convert stored time into 12-hour format for the response
+                time_obj = datetime.strptime(representation['time'], '%H:%M:%S')  # Assuming HH:MM:SS storage format
+                representation['time'] = time_obj.strftime('%I:%M %p')  # Convert to hh:mm AM/PM
+            except ValueError:
+                pass  # Leave the time as-is if parsing fails
+        return representation  
+        # Customize the output format of the `time` field
+           
 
 class GRVModelSerializer(serializers.ModelSerializer):
     class Meta:
         model = GRVModel
         fields ='__all__'
+
+
+
+class OrderUpdateSerializers(serializers.ModelSerializer):
+    class Meta:
+        model = Order
+        fields = "__all__"
+
+class ExpenseSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = ExpenseModel
+        fields = "__all__"
+
+
+class CompanySerializers(serializers.ModelSerializer):
+    class Meta:
+        model = Company
+        fields = "__all__"
