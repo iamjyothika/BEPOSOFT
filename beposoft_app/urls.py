@@ -141,10 +141,10 @@ urlpatterns = [
     path('api/bills/<str:date>/<int:pk>/',BillsView.as_view()),
 
 
-    path('api/credit/sales/',AllCreditSales.as_view()),
-    path('api/stock/products/',StocKProductView.as_view()),
+    path('api/credit/sales/',CreditSalesReportView.as_view()),
+    path('api/credit/bills/<str:date>/<int:pk>/',CreditBillsView.as_view()),
+    path('api/stock/products/',ProductSaleReportView.as_view()),
     
-
 
 
    

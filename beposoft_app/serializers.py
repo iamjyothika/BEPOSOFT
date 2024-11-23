@@ -367,6 +367,9 @@ class PaymentRecieptsViewSerializers(serializers.ModelSerializer):
         model = PaymentReceipt
         fields = '__all__'
 
+        
+
+
 
 
 class WarehousedataSerializer(serializers.ModelSerializer):
