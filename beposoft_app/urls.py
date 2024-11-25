@@ -110,6 +110,8 @@ urlpatterns = [
     path('api/payment/<int:pk>/reciept/',CreateReceiptAgainstInvoice.as_view()),
     path('api/customer/<int:pk>/ledger/',CustomerOrderLedgerdata.as_view()),
 
+    
+    
     path('api/payment-receipts/', PaymentReceiptView.as_view()),
     
     
@@ -139,11 +141,15 @@ urlpatterns = [
     path('api/salesreport/',SalesReportView.as_view()),
     path('api/invoicereport/<str:date>/',InvoiceReportView.as_view()),
     path('api/bills/<str:date>/<int:pk>/',BillsView.as_view()),
-
-
     path('api/credit/sales/',CreditSalesReportView.as_view()),
-    path('api/credit/bills/<str:date>/<int:pk>/',CreditBillsView.as_view()),
-    path('api/stock/products/',ProductSaleReportView.as_view()),
+    path('api/credit/bills/<str:date>/',CreditBillsView.as_view()),
+    path('api/credit/invoice/<str:date>/<int:pk>/',CreditInvoiceView.as_view()),
+
+    path('api/COD/sales/',CODSalesReportView.as_view()),
+    path('api/COD/bills/<str:date>/',CODBillsView.as_view()),
+
+
+    path('api/sold/products/',ProductSaleReportView.as_view()),
     
 
 

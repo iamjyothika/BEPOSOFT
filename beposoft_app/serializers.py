@@ -3,6 +3,7 @@ from .models import *
 from django.contrib.auth.hashers import check_password, make_password
 from django.db import transaction
 from datetime import datetime
+from django.db.models import Sum
 
 
 
@@ -353,6 +354,40 @@ class OrderSerializer(serializers.ModelSerializer):
     class Meta:
         model = Order
         fields = "__all__"
+
+class OrderInvoiceSerializer(serializers.ModelSerializer):
+    # Define the fields you want to include in the response
+    manage_staff_name = serializers.CharField(source='manage_staff.name', read_only=True)
+    family_name = serializers.CharField(source='family.name', read_only=True)
+    company_name=serializers.CharField(source='company.name',read_only=True)
+    
+    class Meta:
+        model = Order
+        fields = [
+            'id', 'invoice', 'order_date', 'status', 'shipping_mode', 'manage_staff_name',  
+            'family_name','company_name'  
+         
+            
+        ]        
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
         
 class BankSerializer(serializers.ModelSerializer):
     class Meta:
@@ -363,11 +398,39 @@ class BankSerializer(serializers.ModelSerializer):
 class PaymentRecieptsViewSerializers(serializers.ModelSerializer):
     created_by = serializers.CharField(source="created_by.name")
     bank = serializers.CharField(source="bank.name")
+
+    
     class Meta :
         model = PaymentReceipt
         fields = '__all__'
 
-        
+
+class PaymentReceiptSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = PaymentReceipt
+        fields = ['amount']       
+
+
+class OrderPaymentSerializer(serializers.ModelSerializer):
+    payment_receipts = PaymentReceiptSerializer(many=True)
+    
+    # We will calculate the total paid amount by summing the amount from all related payment receipts
+    total_paid = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Order
+        fields = ['id', 'invoice', 'order_date', 'payment_status', 'status', 'payment_receipts', 'manage_staff', 'customer', 'total_paid']
+
+    def get_total_paid(self, obj):
+        # Calculate the total paid amount from all related payment receipts for this order
+        total_paid = obj.payment_receipts.aggregate(total_paid=Sum('amount'))['total_paid'] or 0
+        return total_paid
+
+          
+
+
+
+
 
 
 

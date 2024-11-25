@@ -1956,6 +1956,11 @@ class CustomerOrderLedgerdata(BaseTokenView):
             return Response({"data":serializers.data},status=status.HTTP_200_OK)
         except Exception as e :
             return Response({"errors": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+
+
+
 
 
 
@@ -2428,7 +2433,7 @@ class SalesReportView(BaseTokenView):
         except Exception as e:
             return Response({"status": "error", "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
-class InvoiceReportView(APIView):
+class InvoiceReportView(BaseTokenView):
     def get(self, request, date):
         try:
             authUser, error_response = self.get_user_from_token(request)
@@ -2575,10 +2580,18 @@ class CreditSalesReportView(BaseTokenView):
                 total_by_date[order_date]['total_pending'] += pending_amount
 
             # Prepare the response data
-            response_data = {
-                "order_summary_by_date": total_by_date,
+            response_data = [
+                {
+                "date": date,
+                    "total_amount": data['total_amount'],
+                    "total_orders": data['total_orders'],
+                    "total_paid": data['total_paid'],
+                    "total_pending": data['total_pending']
+                }
+                for date, data in total_by_date.items()
+
                 
-            }
+            ]
 
             # Return the response with the order summary
             return Response(response_data, status=status.HTTP_200_OK)
@@ -2589,20 +2602,134 @@ class CreditSalesReportView(BaseTokenView):
 
 
 class CreditBillsView(BaseTokenView):
-    def get(self,request,date,pk):
+    def get(self,request,date):
         try:
             authUser, error_response = self.get_user_from_token(request)
             if error_response:
                 return error_response
-            order_list=Order.objects.filter(order_date =date, pk=pk)
-            serializer = OrderSerializer(order_list, many=True)
+            order_list=Order.objects.filter(order_date =date,payment_status="credit")
+            serializer = OrderPaymentSerializer(order_list, many=True)
             for i in order_list :
                 print(f"Order ID   {i.invoice}   staff   {i.manage_staff.name}")
             return Response({"data":serializer.data})
           
 
         except Exception as e :
+            print(e)
             return Response({"status": "error", "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+class CreditInvoiceView(BaseTokenView):
+    def get(self, request, date, pk):
+        try:
+            authUser, error_response = self.get_user_from_token(request)
+            if error_response:
+                return error_response
+
+            order = Order.objects.filter(pk=pk, order_date=date).first()  
+
+            if not order:
+                return Response(
+                    {"status": "error", "message": "Order not found for the specified date."},
+                    status=status.HTTP_404_NOT_FOUND
+                )
+            serializer = OrderInvoiceSerializer(order)  
+
+            return Response({"data": serializer.data}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            print(e)
+            return Response({"status": "error", "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
+class CODSalesReportView(BaseTokenView):
+    
+    def get(self, request):
+        try:
+                   
+            
+            authUser, error_response = self.get_user_from_token(request)
+            if error_response:
+                return error_response
+            # Fetch all orders with 'credit' payment status
+            orders = Order.objects.filter(payment_status="COD")
+            
+            # Count the total number of orders
+            bills = orders.count()
+
+            # Initialize a dictionary to store total amount per unique order date
+            total_by_date = {}
+
+            # Loop through the orders to accumulate total amounts by order date
+            for order in orders:
+                order_date = order.order_date
+                
+                # If the order date is not already in the dictionary, initialize it
+                if order_date not in total_by_date:
+                    total_by_date[order_date] = {
+                        'total_amount': 0, 
+                        'total_orders': 0, 
+                        'total_paid': 0, 
+                        'total_pending': 0
+                    }
+
+                # Accumulate the total amount and total orders
+                total_by_date[order_date]['total_amount'] += order.total_amount
+                total_by_date[order_date]['total_orders'] += 1
+
+                # Get the paid amount from PaymentReceipt (sum of the amount field)
+                paid_amount = PaymentReceipt.objects.filter(order=order).aggregate(total_paid=Sum('amount'))['total_paid']
+                
+                # If no payment receipts, set the paid amount to 0
+                paid_amount = paid_amount if paid_amount is not None else 0
+                
+                # Accumulate the paid amount
+                total_by_date[order_date]['total_paid'] += paid_amount
+
+                # Calculate pending amount (total_amount - total_paid)
+                pending_amount = order.total_amount - paid_amount
+                total_by_date[order_date]['total_pending'] += pending_amount
+
+            # Prepare the response data
+            response_data = [
+                {
+                "date": date,
+                    "total_amount": data['total_amount'],
+                    "total_orders": data['total_orders'],
+                    "total_paid": data['total_paid'],
+                    "total_pending": data['total_pending']
+                }
+                for date, data in total_by_date.items()
+
+                
+            ]
+
+            # Return the response with the order summary
+            return Response(response_data, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            print(e)
+            return Response({"error": str(e)}, status=status.HTTP_400_BAD_REQUEST)
+        
+
+
+class CODBillsView(BaseTokenView):
+    def get(self,request,date):
+        try:
+            authUser, error_response = self.get_user_from_token(request)
+            if error_response:
+                return error_response
+            order_list=Order.objects.filter(order_date =date,payment_status="COD")
+            serializer = OrderPaymentSerializer(order_list, many=True)
+            for i in order_list :
+                print(f"Order ID   {i.invoice}   staff   {i.manage_staff.name}")
+            return Response({"data":serializer.data})
+          
+
+        except Exception as e :
+            print(e)
+            return Response({"status": "error", "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)        
+
+
+        
             
             
 
