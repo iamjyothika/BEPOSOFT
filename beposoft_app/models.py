@@ -341,6 +341,10 @@ class Order(models.Model):
         ('Invoice Created','Invoice Created'),
         ('Invoice Approved','Invoice Approved'),
         ('Waiting For Confirmation','Waiting For Confirmation'),
+        ('Packing under progress','Packing under progress'),
+        ('Packing','Packing'),
+        ('Ready to ship','Ready to ship'),
+
         ('To Print','To Print'),
         ('Invoice Rejectd','Invoice Rejectd'),
         ('Processing', 'Processing'),
@@ -362,8 +366,8 @@ class Order(models.Model):
         ('Cash on Delivery', 'Cash on Delivery'),
     ], default='Net Banking')
  
-    time=models.TimeField(null=True)
-    updated_at = models.DateField(auto_now_add=True,null=True, blank=True)
+    time=models.TimeField(null=True,)
+    updated_at = models.DateField(null=True, blank=True)
    
 
     def save(self, *args, **kwargs):
@@ -387,16 +391,16 @@ class Order(models.Model):
             number = int(highest_invoice.invoice.split('-')[-1]) + 1
         else:
             number = 1
-        return str(number).zfill(6)  # Zero-pad to 6 digits
+        return str(number).zfill(6) 
     def update_status(self, new_status):
         """
         Updates the status and sets the updated_at field to the current time.
         """
-        if self.status != new_status:  # Check if the status is changing
+        if self.status != new_status:
             self.status = new_status
-            self.updated_at = now()  # Set current timestamp
+            self.updated_at = now()
             print(f"Status updated to '{new_status}' on {self.updated_at}")
-            self.save()  # Save the changes
+            self.save() 
         else:
             print("No change in status.")
 
@@ -501,6 +505,8 @@ class PerfomaInvoiceOrder(models.Model):
         ('Invoice Created','Invoice Created'),
         ('Invoice Approved','Invoice Approved'),
         ('Waiting For Confirmation','Waiting For Confirmation'),
+      
+        
         ('To Print','To Print'),
         ('Invoice Rejectd','Invoice Rejectd'),
         ('Processing', 'Processing'),
@@ -606,7 +612,7 @@ class GRVModel(models.Model):
     quantity=models.IntegerField()
     remark=models.CharField(max_length=20,choices=REMARK_CHOICES,null=True)
     status=models.CharField(max_length=30,choices=STATUS_CHOICES,default='pending',null=True)
-    date=models.DateField(null=True)
+    
     time=models.TimeField(null=True)
     note=models.TextField(null=True)
     updated_at = models.DateTimeField(null=True, blank=True)

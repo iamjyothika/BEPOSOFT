@@ -37,6 +37,7 @@ urlpatterns = [
     path('api/product/update/<int:pk>/',ProductUpdateView.as_view(),name="product-update"),
 
 
+
     path('api/add/department/',DepartmentCreateView.as_view(),name="add-department"),  # completed
     path('api/departments/',DepartmentListView.as_view(),name="departments"), # completed
     path('api/department/update/<int:pk>/',DepartmentsUpdateView.as_view(),name="department-update"), # completed
@@ -140,16 +141,23 @@ urlpatterns = [
 
     path('api/salesreport/',SalesReportView.as_view()),
     path('api/invoicereport/<str:date>/',InvoiceReportView.as_view()),
+
     path('api/bills/<str:date>/<int:pk>/',BillsView.as_view()),
     path('api/credit/sales/',CreditSalesReportView.as_view()),
     path('api/credit/bills/<str:date>/',CreditBillsView.as_view()),
-    path('api/credit/invoice/<str:date>/<int:pk>/',CreditInvoiceView.as_view()),
-
     path('api/COD/sales/',CODSalesReportView.as_view()),
     path('api/COD/bills/<str:date>/',CODBillsView.as_view()),
 
+    path('api/statewise/report/',StatewiseSalesReport.as_view()),
+    path('api/stateorder/detail/<int:state_id>/',StateOrderDetailsView.as_view()),
 
-    path('api/sold/products/',ProductSaleReportView.as_view()),
+    path('api/deliverylist/report/<str:date>/',DeliveryListView.as_view()),
+    
+    
+    path('api/sold/products/',ProductSalesReportView.as_view()),
+    path('api/stock/report/',StockReportView.as_view()),
+
+    path('api/damaged/stocks/report/',DamagedStockReportView.as_view()),
     
 
 
@@ -162,7 +170,8 @@ urlpatterns = [
    
    
    
-   
+    
+    path('api/productstock/',ProductStockAPIView.as_view()),
    
     path('productsinexcel/',views.get_products_excel)
     

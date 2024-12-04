@@ -22,6 +22,10 @@ from django.http import HttpResponse
 from datetime import datetime
 from django.db.models import Count, Q,Sum, F
 from django.utils.dateparse import parse_date
+from django.db.models import Sum, F, FloatField
+
+from collections import defaultdict
+
 
 
 def get_products_excel(request):
@@ -86,9 +90,11 @@ class UserLoginAPIView(APIView):
                         'email': customer.email,
                         'name':customer.name,
                         'exp': expiration_time,
+                        'dep':customer.department_id.name,
                         'iat': datetime.utcnow() 
                     }
                     token = jwt.encode(user_token, settings.SECRET_KEY, algorithm='HS256')
+                    print(user_token)
 
                     # Set JWT token in cookies
                     response = Response({ "status": "success",
@@ -1398,7 +1404,6 @@ class CustomerOrderItems(BaseTokenView):
 
 
 
-logger = logging.getLogger(__name__)
 
 class CustomerOrderStatusUpdate(BaseTokenView):
     def put(self, request, pk):
@@ -1408,11 +1413,11 @@ class CustomerOrderStatusUpdate(BaseTokenView):
 
         try:
             order = get_object_or_404(Order, pk=pk)
-            print(request.data)
             serializer = OrderUpdateSerializers(order, request.data, partial=True)
             if serializer.is_valid():
                 serializer.save()
-            return Response({"status": "success", "message": "Order status updated successfully"}, status=status.HTTP_200_OK)
+                return Response({"status": "success", "message": "Order status updated successfully"}, status=status.HTTP_200_OK)
+            return Response(serializer.errors,status=status.HTTP_400_BAD_REQUEST)
 
         except Exception as e:
             return Response({"status": "error", "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
@@ -1433,7 +1438,6 @@ class ShippingManagementView(BaseTokenView):
             if serializer.is_valid():
                 serializer.save()
                 return Response({"status": "success", "message": "Order updated successfully"}, status=status.HTTP_200_OK)
-            print(serializer.errors)
             return Response({"status": "error", "message": "Invalid data"}, status=status.HTTP_400_BAD_REQUEST)
         
         except DatabaseError:
@@ -1912,8 +1916,26 @@ class OrderTotalAmountSave(BaseTokenView):
         except Exception as e :
             return Response({"errors": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
+
+class ProductStockAPIView(BaseTokenView):
+    def get(self, request):
+        try:
+            # Retrieve the user from the token
+            authUser, error_response = self.get_user_from_token(request)
+            if error_response:
+                return error_response
+
+            # Fetch all orders and serialize them using the OrderStockModelSerializer
+            orders = Order.objects.all()  # Querying the Order model to get all orders
+            stocks = OrderStockModelSerializer(orders, many=True)  # Serialize the orders
+
+            # Return the serialized data
+            return Response({"status": "success", "data": stocks.data}, status=status.HTTP_200_OK)
         
-        
+        except Exception as e:
+            # Handle any exceptions that occur
+            return Response({"errors": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+
         
 class CreateReceiptAgainstInvoice(BaseTokenView):
     def post(self, request, pk):
@@ -2376,10 +2398,16 @@ class SalesReportView(BaseTokenView):
                 'Invoice Created', 
                 'Invoice Approved', 
                 'Waiting For Confirmation',
-                'Invoice Rejectd' 
+              
                 'To Print', 
                 'Processing', 
                 'Completed'
+            ]
+            rejected_statuses=[
+                  'Invoice Rejectd' ,
+                'Cancelled', 
+        'Refunded',
+        'Return'
             ]
             distinct_dates = orders.values_list('order_date', flat=True).distinct()
             report_data = []
@@ -2404,10 +2432,26 @@ class SalesReportView(BaseTokenView):
 
                 
                 # Rejected bills and amount for the date
-                rejected_bills = daily_orders.exclude(status__in=approved_statuses)
+                rejected_bills = daily_orders.filter(status__in=rejected_statuses)
                 rejected_count = rejected_bills.count()
                 rejected_amount = rejected_bills.aggregate(total=Sum('total_amount'))['total'] or 0
                 print(f"Rejected bills for {date}: {rejected_count}, Total rejected amount: {rejected_amount}")
+                staff_orders = []
+
+                # Group orders by staff member for the current date
+                for order in daily_orders:
+                        staff_orders.append({
+                   
+                        "invoice": order.invoice,
+                        "total_amount": order.total_amount,
+                        "payment_status": order.payment_status,
+                        "status": order.status,
+                        "manage_staff_id": order.manage_staff.id,
+                        "manage_staff": order.manage_staff.username 
+                    })
+
+             
+
 
                 # Append the results for the date
                 report_data.append({
@@ -2424,7 +2468,9 @@ class SalesReportView(BaseTokenView):
                         "bills": rejected_count,
                         "amount": rejected_amount,
                     },
+                   "staff_orders": staff_orders
                 })
+        
 
               
                
@@ -2608,7 +2654,7 @@ class CreditBillsView(BaseTokenView):
             if error_response:
                 return error_response
             order_list=Order.objects.filter(order_date =date,payment_status="credit")
-            serializer = OrderPaymentSerializer(order_list, many=True)
+            serializer = OrderDetailSerializer(order_list, many=True)
             for i in order_list :
                 print(f"Order ID   {i.invoice}   staff   {i.manage_staff.name}")
             return Response({"data":serializer.data})
@@ -2618,27 +2664,6 @@ class CreditBillsView(BaseTokenView):
             print(e)
             return Response({"status": "error", "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-class CreditInvoiceView(BaseTokenView):
-    def get(self, request, date, pk):
-        try:
-            authUser, error_response = self.get_user_from_token(request)
-            if error_response:
-                return error_response
-
-            order = Order.objects.filter(pk=pk, order_date=date).first()  
-
-            if not order:
-                return Response(
-                    {"status": "error", "message": "Order not found for the specified date."},
-                    status=status.HTTP_404_NOT_FOUND
-                )
-            serializer = OrderInvoiceSerializer(order)  
-
-            return Response({"data": serializer.data}, status=status.HTTP_200_OK)
-
-        except Exception as e:
-            print(e)
-            return Response({"status": "error", "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
 
 class CODSalesReportView(BaseTokenView):
     
@@ -2718,7 +2743,7 @@ class CODBillsView(BaseTokenView):
             if error_response:
                 return error_response
             order_list=Order.objects.filter(order_date =date,payment_status="COD")
-            serializer = OrderPaymentSerializer(order_list, many=True)
+            serializer = OrderDetailSerializer(order_list, many=True)
             for i in order_list :
                 print(f"Order ID   {i.invoice}   staff   {i.manage_staff.name}")
             return Response({"data":serializer.data})
@@ -2726,7 +2751,8 @@ class CODBillsView(BaseTokenView):
 
         except Exception as e :
             print(e)
-            return Response({"status": "error", "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)        
+            return Response({"status": "error", "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+                
 
 
         
@@ -2739,84 +2765,144 @@ class CODBillsView(BaseTokenView):
 
 
 from django.http import JsonResponse
-# class StocKProductView(BaseTokenView):
-#     def get(self, request):
-#         try:
-#             # Get user from token
-#             authUser, error_response = self.get_user_from_token(request)
-#             if error_response:
-#                 return error_response
 
-#             # Get all sold out products (OrderItem) and aggregate by product
-#             soldouts = OrderItem.objects.all()
-#             for i in soldouts:
-#                 if i.product.type == "single":
-#                     print(f"name {i.product.name}")
-#                 else :
-#                     print(f"name {i.variant.name}")
 
-#             return Response({"data":"sucess"})
+class ProductSalesReportView(APIView):
+    def get(self, request):
+        try:
+            sales_data = OrderItem.objects.select_related('product', 'order') \
+                .values('product', 'product__name', 'order__order_date') \
+                .annotate(
+                    total_sold=Sum('quantity'),
+                    # Calculate total amount considering selling price and discount from OrderItem model
+                    total_amount=Sum(
+                        (F('product__selling_price') - F('discount')) * F('quantity'),
+                        output_field=FloatField()
+                    )
+                )
+              
+            
+            
+            # Serialize the data
+            serializer = ProductSalesReportSerializer(sales_data, many=True)
+
+            # Return the serialized data in response
+            return Response({"data": serializer.data}, status=200)
+
+        except Exception as e:
+            return Response({"status": "error", "message": str(e)}, status=500)
+
+
+
+class StatewiseSalesReport(APIView):
+    def get(self, request):
+        try:
+            state = State.objects.all()
+            serializer = StateBaseOrderSerializers(state, many=True)
+
+            return Response({"data": serializer.data}, status=status.HTTP_200_OK)
+
+        except Exception as e:
+            return Response({"status": "error", "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
         
-#         except Exception as e:
-#             return JsonResponse({"error": str(e)}, status=500)
 
 
 
-class ProductSaleReportView(BaseTokenView):
+
+
+
+class StateOrderDetailsView(BaseTokenView):
+    def get(self, request, state_id):
+        try:
+            authUser, error_response = self.get_user_from_token(request)
+            if error_response:
+                return error_response
+
+           
+            state = State.objects.get(pk=state_id)
+            
+            orders = Order.objects.filter(state=state)
+
+            serializer = OrderDetailSerializer(orders, many=True)
+
+           
+            return Response({"data": serializer.data}, status=status.HTTP_200_OK)
+
+        except State.DoesNotExist:
+            return Response({"status": "error", "message": "State not found."}, status=status.HTTP_404_NOT_FOUND)
+        except Exception as e:
+            print(e)
+            return JsonResponse({"status": "error", "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+class DeliveryListView(BaseTokenView):
+    def get(self, request, date):
+        try:
+            authUser, error_response = self.get_user_from_token(request)
+            if error_response:
+                return error_response
+            
+            # Use select_related to fetch related Order data
+            data = Warehousedata.objects.filter(shipped_date=date).select_related('order')
+            serializer = WareHouseSerializer(data, many=True)
+            
+            return Response({"data": serializer.data}, status=status.HTTP_200_OK)
+        
+        except Exception as e:
+            return Response({"status": "error", "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+        
+
+class StockReportView(BaseTokenView):
     def get(self, request):
         try:
             # Get user from token
             authUser, error_response = self.get_user_from_token(request)
             if error_response:
                 return error_response
-
-            # Get all sold out products (OrderItem)
-            soldouts = OrderItem.objects.filter(order__status='Shipped') 
-
-            # Aggregate by order_date and product to calculate the total items sold for each product per date
-            product_sales = soldouts.values('order__order_date', 'product') \
-                                    .annotate(total_sold=Sum('quantity'))  # Sum of sold quantities
             
-            # Prepare the response data with stock quantities
-            response_data = []
-            for sale in product_sales:
-                product = Products.objects.get(id=sale['product'])  # Get the product from the ID
-                stock_quantity = product.stock # Stock quantity from the product
+            products = Products.objects.all()
 
-                # Calculate remaining stock
-                remaining_stock = stock_quantity - sale['total_sold']
-
-                # Get the product title (or variant if necessary)
-                if product.type == 'single':
-                    product_title = product.name 
-                    print(product.name) # Use the product name directly for single products
-                else:
-                    # For variant products, retrieve the variant name
-                    variant_product = VariantProducts.objects.filter(product=product).first()
-                    if variant_product:
-                        product_title = variant_product.name  # Use the variant name if available
-                    else:
-                        product_title = product.name
-
-                # Prepare data for the response
-                response_data.append({
-                    "date": sale['order__order_date'],
-                    "product_title": product_title,
-                    "stock_quantity": stock_quantity,
-                    "items_sold": sale['total_sold'],
-                    "remaining_stock": remaining_stock
-                })
-
-            return Response({"status": "success", "data": response_data}, status=200)
-
+            # Serialize the product data
+            serializer = ProductSalesSerializer(products, many=True)
+            return Response({"data": serializer.data}, status=200)
         except Exception as e:
             print(e)
             return JsonResponse(
                 {"status": "error", "message": str(e)},
                 status=500
             )
+                
+
+class DamagedStockReportView(BaseTokenView):
+    def get(self, request):
+        try:
+            authUser, error_response = self.get_user_from_token(request)
+            if error_response:
+                return error_response
+            grv_data=GRVModel.objects.all()
+            serializer = GRVDataSerializer(grv_data, many=True)
+            return Response({"data": serializer.data}, status=200)
+        
+
+            
             
 
+        except Exception as e:
+            print(e)
+            return Response({"status": "error", "message": str(e)}, status=status.HTTP_500_INTERNAL_SERVER_ERROR)
+              
+            
+        
+
+
+
+
+
+
+
+        
+
+
+        
 
 
 
