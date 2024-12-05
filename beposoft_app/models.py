@@ -638,6 +638,7 @@ class ExpenseModel(models.Model):
     amount=models.DecimalField(max_digits=10,decimal_places=2,null=True)
     expense_date=models.DateField()
     transaction_id=models.IntegerField()
+
     description=models.TextField()
     added_by=models.CharField(max_length=30,null=True)
 

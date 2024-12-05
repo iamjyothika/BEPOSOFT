@@ -157,8 +157,7 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')  # Local storage for media files
 
 
 # AWS S3 Configuration
-AWS_ACCESS_KEY_ID = 'AKIAXEVXYTW3SX5RCZ4B'
-AWS_SECRET_ACCESS_KEY = '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'
+
 AWS_STORAGE_BUCKET_NAME = 'beposoft-bkt'
 AWS_S3_REGION_NAME = 'ap-south-1'
 AWS_S3_SIGNATURE_VERSION = 's3v4'
