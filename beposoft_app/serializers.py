@@ -175,6 +175,7 @@ class FamilySerializer(serializers.ModelSerializer):
         fields = "__all__"
         
         
+        
 class SizeSerializers(serializers.ModelSerializer):
     class Meta :
         model = ProductAttributeVariant

@@ -23,21 +23,30 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 # See https://docs.djangoproject.com/en/5.0/howto/deployment/checklist/
 
 # SECURITY WARNING: keep the secret key used in production secret!
-SECRET_KEY = config('SECRET_KEY')
-DEBUG = config('DEBUG',cast=bool,default=True)
+SECRET_KEY='django-insecure-a0e4^&1w3e78i(lrlq*5$vvwt9ekdp&1r^4^$qjt050b(g$bs4'
+DEBUG=True
 
 # SECURITY WARNING: don't run with debug turned on in production!
 
 
-ALLOWED_HOSTS = ['127.0.0.1', 'localhost','*']
+ALLOWED_HOSTS = ['127.0.0.1', 'localhost','*','http://127.0.0.1:8000']
 
 
 CORS_ALLOWED_ORIGINS = [
     "http://localhost:5173",
+    "http://127.0.0.1:8000"
+
+]
+CSRF_TRUSTED_ORIGINS = [
+    'http://127.0.0.1:8000',  # Add your local server
+    'http://localhost:8000',  # Add localhost
 ]
 
 
-CORS_ALLOW_ALL_ORIGINS  = True
+SESSION_COOKIE_DOMAIN = None
+
+
+CORS_ALLOW_ALL_ORIGINS  = False
 CORS_ALLOW_CREDENTIALS = True
 
 CORS_ALLOW_HEADERS = [
@@ -53,6 +62,9 @@ CORS_ALLOW_HEADERS = [
 
 
 SECURE_COOKIE = True
+
+CSRF_COOKIE_SECURE = False
+SESSION_COOKIE_SECURE = False
 
 JWT_EXPIRATION_MINUTES = 1440 
 
@@ -109,8 +121,12 @@ WSGI_APPLICATION = 'beposoft.wsgi.application'
 
 DATABASES = {
     'default': {
-        'ENGINE': 'django.db.backends.sqlite3',
-        'NAME': BASE_DIR / 'db.sqlite3',  
+        'ENGINE': 'django.db.backends.mysql',
+        'NAME': 'beposoftdb',  
+        'USER': 'beposoftproject',  
+        'PASSWORD': 'bepo24it',  
+        'HOST': 'database-3.cje486w6gaav.ap-south-1.rds.amazonaws.com',  
+        'PORT': '3306'
     }
 }
 
