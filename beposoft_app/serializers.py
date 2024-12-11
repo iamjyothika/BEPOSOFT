@@ -984,7 +984,7 @@ class ProductSalesReportSerializer(serializers.Serializer):
 class GRVDataSerializer(serializers.ModelSerializer):
     class Meta:
         model = GRVModel
-        fields = ['id', 'product', 'quantity', 'date', 'returnreason']
+        fields = ['id', 'product', 'quantity','date','returnreason']
                                                                                                                 
         #OrderItemSerializer
         # OrderItemModelSerializer

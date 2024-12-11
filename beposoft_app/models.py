@@ -612,6 +612,7 @@ class GRVModel(models.Model):
     quantity=models.IntegerField()
     remark=models.CharField(max_length=20,choices=REMARK_CHOICES,null=True)
     status=models.CharField(max_length=30,choices=STATUS_CHOICES,default='pending',null=True)
+    date=models.DateField(null=True)
     
     time=models.TimeField(null=True)
     note=models.TextField(null=True)

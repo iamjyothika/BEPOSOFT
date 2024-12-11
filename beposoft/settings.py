@@ -158,26 +158,35 @@ MEDIA_ROOT = os.path.join(BASE_DIR, 'media')  # Local storage for media files
 
 # AWS S3 Configuration
 
-AWS_STORAGE_BUCKET_NAME = 'beposoft-bkt'
+
+
+
+AWS_ACCESS_KEY_ID ='AKIAXEVXYTW3QTNCEHHW'
+AWS_SECRET_ACCESS_KEY ='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'
+
+AWS_STORAGE_BUCKET_NAME = 'beposoft-bucket'
 AWS_S3_REGION_NAME = 'ap-south-1'
 AWS_S3_SIGNATURE_VERSION = 's3v4'
 
 AWS_S3_FILE_OVERWRITE = False  # Prevent overwriting files with the same name
-AWS_DEFAULT_ACL = None         # Recommended for avoiding public ACL conflicts
-AWS_S3_VERIFY = True
+AWS_DEFAULT_ACL = None
+
+
+
 
 AWS_S3_CUSTOM_DOMAIN = f"{AWS_STORAGE_BUCKET_NAME}.s3.amazonaws.com"
-
-DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-
+MEDIA_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/media/"
 
 if 'STATICFILES_STORAGE' in locals():
     STATIC_URL = f"https://{AWS_S3_CUSTOM_DOMAIN}/static/"
 
 DEFAULT_AUTO_FIELD = 'django.db.models.BigAutoField'
 
+DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
+
+
+
 AWS_S3_SIGNATURE_VERSION = 's3v4'
-STATICFILES_STORAGE = 'storages.backends.s3boto3.S3StaticStorage'
 
 
 STORAGES = {
@@ -185,7 +194,7 @@ STORAGES = {
         "BACKEND": "storages.backends.s3boto3.S3Boto3Storage",  # Media file storage
     },
     "staticfiles": {
-        "BACKEND": "storages.backends.s3boto3.S3StaticStorage",  # Static file storage
+        "BACKEND": "storages.backends.s3boto3.S3Boto3Storage"  # Static file storage
     },
 }
 
